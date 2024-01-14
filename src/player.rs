@@ -66,5 +66,14 @@ fn spawn_player(
         Speed { value: 2.5 }
     );
 
-    commands.spawn(player);
+    let camera = Camera3dBundle {
+        transform: Transform::from_xyz(0., 5., 10.)
+                                .with_rotation(Quat::from_euler(EulerRot::XYZ, -0.26, 0., 0.)),
+        ..default()
+    };
+
+    let player_entity = commands.spawn(player).id();
+    let camera_entity = commands.spawn(camera).id();
+
+    commands.entity(player_entity).push_children(&[camera_entity]);
 }
