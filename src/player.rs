@@ -53,14 +53,14 @@ fn player_movement_system(
 
 fn spawn_player(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    assets: Res<AssetServer>
 ) {
-    let player = (PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Box::new(1., 0.25, 2.))),
-        material: materials.add(Color::GRAY.into()),
-        transform: Transform::from_xyz(0., 0.5, 0.),
-        ..default()
+    let player = (
+        SceneBundle {
+            scene: assets.load("rovie.glb#Scene0"),
+            transform: Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
+                                    .with_translation(Vec3::new(0., 0.5, 0.)),
+            ..default()
         },
         Player,
         Speed { value: 2.5 }
