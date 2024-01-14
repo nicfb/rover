@@ -44,6 +44,10 @@ fn player_movement_system(
 
         let movement = direction.normalize_or_zero() * player_speed.value * time.delta_seconds();
         player_tform.translation += movement;
+
+        if direction.length_squared() > 0. {
+            player_tform.look_to(direction, Vec3::Y);
+        }
     }   
 }
 
@@ -53,7 +57,7 @@ fn spawn_player(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let player = (PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube::new(1.))),
+        mesh: meshes.add(Mesh::from(shape::Box::new(1., 0.25, 2.))),
         material: materials.add(Color::GRAY.into()),
         transform: Transform::from_xyz(0., 0.5, 0.),
         ..default()

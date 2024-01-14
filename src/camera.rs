@@ -30,7 +30,7 @@ fn camera_movement_system(
             Err(e) => Err(format!("Error retrieving camera: {}", e)).unwrap(),
         };
 
-        cam.translation = Vec3::new(player_tform.translation.x, player_tform.translation.y + 5., player_tform.translation.z + 5.);
+        cam.translation = Vec3::new(player_tform.translation.x, player_tform.translation.y + 3., player_tform.translation.z + 5.);
         cam.look_at(player_tform.translation, Vec3::Y);
     }
 }
