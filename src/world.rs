@@ -99,9 +99,7 @@ fn create_noise_map_mesh() -> Mesh {
         }
     }
 
-    // Defining triangles.
     let mut triangles: Vec<u32> = Vec::with_capacity(num_triangles);
-
     for h in 0..height_u32 {
         for w in 0..width_u32 {
             triangles.push((h * (width_u32 + 1)) + w);

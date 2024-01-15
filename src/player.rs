@@ -1,16 +1,36 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+use bevy_asset_loader::prelude::*;
 
 use std::f32::consts::TAU;
 
 pub struct PlayerPlugin;
 
+
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_systems(Startup, spawn_player)
+            .add_state::<GameState>()
+            .add_loading_state(
+                LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::InGame),
+            )
+            .add_collection_to_loading_state::<_, MyMeshAssets>(GameState::AssetLoading)
+            .add_systems(OnEnter(GameState::InGame), spawn_player)
             .add_systems(Update, player_movement_system);
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, States, Default)]
+pub enum GameState {
+    #[default]
+    AssetLoading,
+    InGame,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct MyMeshAssets {
+    #[asset(path = "rovie.glb#Mesh0/Primitive0")]
+    rovie: Handle<Mesh>
 }
 
 #[derive(Component)]
@@ -54,12 +74,11 @@ fn player_movement_system(
 fn spawn_player(
     mut commands: Commands,
     assets: Res<AssetServer>,
+    assets_gltf: Res<Assets<Mesh>>,
+    my_mesh_assets: Res<MyMeshAssets>,
 ) {
-    //todo: get mesh from gltf
-    //      let mesh: Handle<Mesh> = assets.load("rovie.glb#Scene0");
-    //      let collider = Collider::from_bevy_mesh(meshes.get(mesh).unwrap(), &ComputedColliderShape::ConvexHull);
-    let collider = Collider::cuboid(1.5, 1., 1.);
-    
+    let rover_gltf = assets_gltf.get(&my_mesh_assets.rovie).unwrap();
+    let collider = Collider::from_bevy_mesh(rover_gltf, &ComputedColliderShape::TriMesh);
     let player = (
         SceneBundle {
             scene: assets.load("rovie.glb#Scene0"),
@@ -70,11 +89,11 @@ fn spawn_player(
         Player,
         Velocity { value: Vec3::ZERO },
         RigidBody::Dynamic,
-        collider
+        collider.unwrap(),
     );
 
     let camera = Camera3dBundle {
-        transform: Transform::from_xyz(0., 5., 10.)
+        transform: Transform::from_xyz(0., 5., 15.)
                                 .with_rotation(Quat::from_euler(EulerRot::XYZ, -0.26, 0., 0.)),
         ..default()
     };
