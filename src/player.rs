@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_rapier3d::prelude::*;
 
 use std::f32::consts::TAU;
 
@@ -6,7 +7,8 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_player)
+        app
+            .add_systems(Startup, spawn_player)
             .add_systems(Update, player_movement_system);
     }
 }
@@ -45,16 +47,19 @@ fn player_movement_system(
 
         let forward_direction = player_tform.forward();
         player_tform.translation += forward_direction * (player_velocity.value.z * time.delta_seconds());
-        player_tform.translation.y = 0.; //fake gravity
-
         player_tform.rotate_y(player_velocity.value.y * TAU * time.delta_seconds());
     }   
 }
 
 fn spawn_player(
     mut commands: Commands,
-    assets: Res<AssetServer>
+    assets: Res<AssetServer>,
 ) {
+    //todo: get mesh from gltf
+    //      let mesh: Handle<Mesh> = assets.load("rovie.glb#Scene0");
+    //      let collider = Collider::from_bevy_mesh(meshes.get(mesh).unwrap(), &ComputedColliderShape::ConvexHull);
+    let collider = Collider::cuboid(1.5, 1., 1.);
+    
     let player = (
         SceneBundle {
             scene: assets.load("rovie.glb#Scene0"),
@@ -63,7 +68,9 @@ fn spawn_player(
             ..default()
         },
         Player,
-        Velocity { value: Vec3::ZERO }
+        Velocity { value: Vec3::ZERO },
+        RigidBody::Dynamic,
+        collider
     );
 
     let camera = Camera3dBundle {
