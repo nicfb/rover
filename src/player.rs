@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use std::f32::consts::TAU;
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
@@ -13,41 +15,39 @@ impl Plugin for PlayerPlugin {
 pub struct Player;
 
 #[derive(Component)]
-struct Speed {
-    value: f32
+pub struct Velocity {
+	pub value: Vec3
 }
 
 fn player_movement_system(
     keys: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut player_query: Query<(&mut Transform, &Speed), With<Player>>,
-    camera_query: Query<&Transform, (With<Camera3d>, Without<Player>)>
+    mut player_query: Query<(&mut Transform, &mut Velocity), With<Player>>
 ) {
-    for (mut player_tform, player_speed) in player_query.iter_mut() {
-        let cam = match camera_query.get_single() {
-            Ok(c) => c,
-            Err(e) => Err(format!("Error retrieving camera: {}", e)).unwrap(),
+    let player_move_speed = 1.;
+    let player_rotation_speed = 0.25;
+    for (mut player_tform, mut player_velocity) in player_query.iter_mut() {
+        player_velocity.value.z = if keys.pressed(KeyCode::Up) {
+            player_move_speed
+        } else if keys.pressed(KeyCode::Down) {
+            -player_move_speed
+        } else {
+            0.
         };
 
-        let mut direction = Vec3::ZERO;
-        if keys.pressed(KeyCode::Up) {
-            direction += cam.forward();
-        } else if keys.pressed(KeyCode::Down) {
-            direction += cam.back();
-        } else if keys.pressed(KeyCode::Left) {
-            direction += cam.left();
+        player_velocity.value.y = if keys.pressed(KeyCode::Left) {
+            player_rotation_speed
         } else if keys.pressed(KeyCode::Right) {
-            direction += cam.right();
-        }
+            -player_rotation_speed
+        } else {
+            0.
+        };
 
-        direction.y = 0.; //fake gravity
+        let forward_direction = player_tform.forward();
+        player_tform.translation += forward_direction * (player_velocity.value.z * time.delta_seconds());
+        player_tform.translation.y = 0.; //fake gravity
 
-        let movement = direction.normalize_or_zero() * player_speed.value * time.delta_seconds();
-        player_tform.translation += movement;
-
-        if direction.length_squared() > 0. {
-            player_tform.look_to(direction, Vec3::Y);
-        }
+        player_tform.rotate_y(player_velocity.value.y * TAU * time.delta_seconds());
     }   
 }
 
@@ -63,7 +63,7 @@ fn spawn_player(
             ..default()
         },
         Player,
-        Speed { value: 2.5 }
+        Velocity { value: Vec3::ZERO }
     );
 
     let camera = Camera3dBundle {
