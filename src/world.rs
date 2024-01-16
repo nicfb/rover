@@ -101,14 +101,31 @@ fn create_noise_map_mesh() -> Mesh {
     let mut triangles: Vec<u32> = Vec::with_capacity(num_triangles);
     for x in 0..width_u32 {
         for y in 0..height_u32 {
-            //top right triangle
-            triangles.push((x * (width_u32 + 1)) + y);
-            triangles.push(((x + 1) * (width_u32 + 1)) + y);
-            triangles.push(((x + 1) * (width_u32 + 1)) + y + 1);
-            //bottom left triangle
-            triangles.push((x * (width_u32 + 1)) + y);
-            triangles.push(((x + 1) * (width_u32 + 1)) + y + 1);
-            triangles.push((x * (width_u32 + 1)) + y + 1);
+            let bot_left = (x * (width_u32 + 1)) + y;
+            let bot_right = ((x + 1) * (width_u32 + 1)) + y;
+            let top_right = ((x + 1) * (width_u32 + 1)) + y + 1;
+            let top_left = (x * (width_u32 + 1)) + y + 1;
+            //       /|
+            //      / |
+            //     /  |
+            //    /   |
+            //   /    |
+            //  /     |
+            // /______|
+            triangles.push(bot_left);
+            triangles.push(bot_right);
+            triangles.push(top_right);
+            // _______
+            //|      /
+            //|     /
+            //|    /
+            //|   /
+            //|  /
+            //| /
+            //|/
+            triangles.push(bot_left);
+            triangles.push(top_right);
+            triangles.push(top_left);
         }
     }
 
