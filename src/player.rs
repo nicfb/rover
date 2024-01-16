@@ -73,15 +73,16 @@ fn player_movement_system(
 
 fn spawn_player(
     mut commands: Commands,
-    assets: Res<AssetServer>,
     assets_gltf: Res<Assets<Mesh>>,
     my_mesh_assets: Res<MyMeshAssets>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let rover_gltf = assets_gltf.get(&my_mesh_assets.rovie).unwrap();
-    let collider = Collider::from_bevy_mesh(rover_gltf, &ComputedColliderShape::TriMesh);
+    let rover_mesh = assets_gltf.get(&my_mesh_assets.rovie).unwrap();
+    let collider = Collider::from_bevy_mesh(rover_mesh, &ComputedColliderShape::TriMesh);
     let player = (
-        SceneBundle {
-            scene: assets.load("rovie.glb#Scene0"),
+        PbrBundle {
+            mesh: my_mesh_assets.rovie.clone(),
+            material: materials.add(Color::WHITE.into()),
             transform: Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
                                     .with_translation(Vec3::new(0., 0.25, 0.)),
             ..default()
