@@ -50,9 +50,9 @@ fn player_movement_system(
     let player_rotation_speed = 0.15;
     for (mut player_tform, mut player_velocity) in player_query.iter_mut() {
         player_velocity.value.z = if keys.pressed(KeyCode::Up) {
-            player_move_speed
-        } else if keys.pressed(KeyCode::Down) {
             -player_move_speed
+        } else if keys.pressed(KeyCode::Down) {
+            player_move_speed
         } else {
             0.
         };
@@ -65,7 +65,9 @@ fn player_movement_system(
             0.
         };
 
-        let forward_direction = player_tform.forward();
+        //this is a kludge because the mesh doesn't face the correct direction
+        let true_forward = player_tform.forward();
+        let forward_direction = Vec3::new(true_forward.z, 0., -true_forward.x);
         player_tform.translation += forward_direction * (player_velocity.value.z * time.delta_seconds());
         player_tform.rotate_y(player_velocity.value.y * TAU * time.delta_seconds());
     }   
@@ -94,8 +96,8 @@ fn spawn_player(
     );
 
     let camera = Camera3dBundle {
-        transform: Transform::from_xyz(0., 5., 15.)
-                                .with_rotation(Quat::from_euler(EulerRot::XYZ, -0.26, 0., 0.)),
+        transform: Transform::from_xyz(-12.1, 4.6, 0.)
+                                .with_rotation(Quat::from_euler(EulerRot::ZYX, -0.1, 4.7, 0.)),
         ..default()
     };
 

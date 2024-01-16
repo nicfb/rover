@@ -78,18 +78,18 @@ fn create_noise_map_mesh() -> Mesh {
             let x_f32 = x as f32 / width as f32;
             let y_f32 = y as f32 / height as f32;
 
-            let mut val = 0.;
+            let mut noise_val = 0.;
             let mut a = amplitude;
             let mut f = freq;
             for _ in 0..octaves {
-                val += a * perlin.gen_noise(x_f32 * f, y_f32 * f);
+                noise_val += a * perlin.gen_noise(x_f32 * f, y_f32 * f);
                 a *= gain;
                 f *= lacunarity;
             }
 
             let pos = [
                 (x as f32 - width_f32 / 2.) * extent_f32 / width_f32,
-                val,
+                noise_val,
                 (y as f32 - height_f32 / 2.) * extent_f32 / height_f32,
             ];
             positions.push(pos);
