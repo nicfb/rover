@@ -30,7 +30,7 @@ pub enum GameState {
 #[derive(AssetCollection, Resource)]
 pub struct MyMeshAssets {
     #[asset(path = "rovie.glb#Mesh0/Primitive0")]
-    rovie: Handle<Mesh>
+    rover: Handle<Mesh>
 }
 
 #[derive(Component)]
@@ -47,7 +47,7 @@ fn player_movement_system(
     mut player_query: Query<(&mut Transform, &mut Velocity), With<Player>>
 ) {
     let player_move_speed = 1.;
-    let player_rotation_speed = 0.25;
+    let player_rotation_speed = 0.15;
     for (mut player_tform, mut player_velocity) in player_query.iter_mut() {
         player_velocity.value.z = if keys.pressed(KeyCode::Up) {
             player_move_speed
@@ -73,18 +73,18 @@ fn player_movement_system(
 
 fn spawn_player(
     mut commands: Commands,
-    assets_gltf: Res<Assets<Mesh>>,
+    meshes: Res<Assets<Mesh>>,
     my_mesh_assets: Res<MyMeshAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let rover_mesh = assets_gltf.get(&my_mesh_assets.rovie).unwrap();
+    let rover_mesh = meshes.get(&my_mesh_assets.rover).unwrap();
     let collider = Collider::from_bevy_mesh(rover_mesh, &ComputedColliderShape::TriMesh);
     let player = (
         PbrBundle {
-            mesh: my_mesh_assets.rovie.clone(),
+            mesh: my_mesh_assets.rover.clone(),
             material: materials.add(Color::WHITE.into()),
             transform: Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
-                                    .with_translation(Vec3::new(0., 0.25, 0.)),
+                                    .with_translation(Vec3::new(0., 0.5, 0.)),
             ..default()
         },
         Player,

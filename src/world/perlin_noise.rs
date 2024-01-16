@@ -38,7 +38,7 @@ impl PerlinNoise {
         return perlin;
     }
 
-    pub fn gen_2d_noise(&self, x: f32, y: f32) -> f32 {
+    pub fn gen_noise(&self, x: f32, y: f32) -> f32 {
         //find which rectangle we are pointing at by using the integer part
         //of the coordinates
         let xi = (x.floor() as u16) & 255;

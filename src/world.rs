@@ -50,65 +50,65 @@ fn setup_physics(
 
 //https://lejondahl.com/heightmap/
 fn create_noise_map_mesh() -> Mesh {
-    let amplitude: f64 = 3.0;
-    let width: usize = 32;
-    let height: usize = 32;
+    let extent = 3.;
+    let width = 32;
+    let height = 32;
 
-    let num_vertices: usize = width * height;
+    let num_vertices = width * height;
     let vertices_per_triangle = 3;
     let triangles_per_square = 2;
-    let num_triangles: usize = width * height * triangles_per_square * vertices_per_triangle;
+    let num_triangles = width * height * triangles_per_square * vertices_per_triangle;
 
     let (width_u32, height_u32) = (width as u32, height as u32);
     let (width_f32, height_f32) = (width as f32, height as f32);
-    let amplitude_f32 = amplitude as f32;
+    let extent_f32 = extent as f32;
 
     let mut positions: Vec<[f32; 3]> = Vec::with_capacity(num_vertices);
     let mut normals: Vec<[f32; 3]> = Vec::with_capacity(num_vertices);
     let mut uvs: Vec<[f32; 2]> = Vec::with_capacity(num_vertices);
 
     let perlin = perlin_noise::PerlinNoise::new();
-    let amplitude = 1.;
+    let amplitude = 2.;
     let freq = 1.;
     let octaves = 8;
     let gain = 0.5;
     let lacunarity = 1.92;
-    for h in 0..=height {
-        for w in 0..=width {
-            let x = h as f32 / width as f32;
-            let y = w as f32 / height as f32;
-            let (i_f32, j_f32) = (h as f32, w as f32);
+    for x in 0..=width {
+        for y in 0..=height {
+            let x_f32 = x as f32 / width as f32;
+            let y_f32 = y as f32 / height as f32;
 
             let mut val = 0.;
             let mut a = amplitude;
             let mut f = freq;
             for _ in 0..octaves {
-                val += a * perlin.gen_2d_noise(x * f, y * f);
+                val += a * perlin.gen_noise(x_f32 * f, y_f32 * f);
                 a *= gain;
                 f *= lacunarity;
             }
 
             let pos = [
-                (i_f32 - width_f32 / 2.) * amplitude_f32 / width_f32,
+                (x as f32 - width_f32 / 2.) * extent_f32 / width_f32,
                 val,
-                (j_f32 - height_f32 / 2.) * amplitude_f32 / height_f32,
+                (x as f32 - height_f32 / 2.) * extent_f32 / height_f32,
             ];
             positions.push(pos);
             normals.push([0.0, 1.0, 0.0]);
-            uvs.push([x, y]);
+            uvs.push([x_f32, y_f32]);       
         }
     }
 
     let mut triangles: Vec<u32> = Vec::with_capacity(num_triangles);
-    for h in 0..height_u32 {
-        for w in 0..width_u32 {
-            triangles.push((h * (width_u32 + 1)) + w);
-            triangles.push(((h + 1) * (width_u32 + 1)) + w);
-            triangles.push(((h + 1) * (width_u32 + 1)) + w + 1);
-
-            triangles.push((h * (width_u32 + 1)) + w);
-            triangles.push(((h + 1) * (width_u32 + 1)) + w + 1);
-            triangles.push((h * (width_u32 + 1)) + w + 1);
+    for x in 0..width_u32 {
+        for y in 0..height_u32 {
+            //top right triangle
+            triangles.push((x * (width_u32 + 1)) + y);
+            triangles.push(((x + 1) * (width_u32 + 1)) + y);
+            triangles.push(((x + 1) * (width_u32 + 1)) + y + 1);
+            //bottom left triangle
+            triangles.push((x * (width_u32 + 1)) + y);
+            triangles.push(((x + 1) * (width_u32 + 1)) + y + 1);
+            triangles.push((x * (width_u32 + 1)) + y + 1);
         }
     }
 
