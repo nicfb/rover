@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use bevy_asset_loader::prelude::*;
 
-use std::f32::consts::TAU;
+use std::{f32::consts::TAU, ops::Mul};
 
 pub struct PlayerPlugin;
 
@@ -36,40 +36,35 @@ pub struct MyMeshAssets {
 #[derive(Component)]
 pub struct Player;
 
-#[derive(Component)]
-pub struct Velocity {
-	pub value: Vec3
-}
-
 fn player_movement_system(
     keys: Res<Input<KeyCode>>,
     time: Res<Time>,
     mut player_query: Query<(&mut Transform, &mut Velocity), With<Player>>
 ) {
     let player_move_speed = 1.;
-    let player_rotation_speed = 0.15;
+    let player_rotation_speed = 0.25;
     for (mut player_tform, mut player_velocity) in player_query.iter_mut() {
-        player_velocity.value.z = if keys.pressed(KeyCode::Up) {
-            -player_move_speed
+        player_velocity.linvel = if keys.pressed(KeyCode::Up) {
+            Vec3::new(0., 0., -player_move_speed)
         } else if keys.pressed(KeyCode::Down) {
-            player_move_speed
+            Vec3::new(0., 0., player_move_speed)
         } else {
-            0.
+            Vec3::new(0., -9.81, 0.)
         };
 
-        player_velocity.value.y = if keys.pressed(KeyCode::Left) {
-            player_rotation_speed
+        player_velocity.angvel = if keys.pressed(KeyCode::Left) {
+            Vec3::new(0., player_rotation_speed, 0.)
         } else if keys.pressed(KeyCode::Right) {
-            -player_rotation_speed
+            Vec3::new(0., -player_rotation_speed, 0.)
         } else {
-            0.
+            Vec3::ZERO
         };
 
         //this is a kludge because the mesh doesn't face the correct direction
         let true_forward = player_tform.forward();
         let forward_direction = Vec3::new(true_forward.z, 0., -true_forward.x);
-        player_tform.translation += forward_direction * (player_velocity.value.z * time.delta_seconds());
-        player_tform.rotate_y(player_velocity.value.y * TAU * time.delta_seconds());
+        player_tform.translation += forward_direction * player_velocity.linvel * time.delta_seconds();
+        player_tform.rotate_y(player_velocity.angvel.mul(TAU * time.delta_seconds()).y);
     }   
 }
 
@@ -79,19 +74,24 @@ fn spawn_player(
     my_mesh_assets: Res<MyMeshAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    //create collider from mesh
     let rover_mesh = meshes.get(&my_mesh_assets.rover).unwrap();
     let collider = Collider::from_bevy_mesh(rover_mesh, &ComputedColliderShape::TriMesh);
+
     let player = (
         PbrBundle {
             mesh: my_mesh_assets.rover.clone(),
             material: materials.add(Color::WHITE.into()),
             transform: Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
-                                    .with_translation(Vec3::new(0., 0.5, 0.)),
+                                    .with_translation(Vec3::new(0., 1.5, 0.)),
             ..default()
         },
         Player,
-        Velocity { value: Vec3::ZERO },
-        RigidBody::Dynamic,
+        Velocity { 
+            linvel: Vec3::ZERO,
+            angvel: Vec3::ZERO,
+         },
+         RigidBody::Dynamic,
         collider.unwrap(),
     );
 
