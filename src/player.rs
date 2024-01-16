@@ -12,9 +12,9 @@ impl Plugin for PlayerPlugin {
         app
             .add_state::<GameState>()
             .add_loading_state(
-                LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::InGame),
+                LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::InGame)
+                .load_collection::<MyMeshAssets>()
             )
-            .add_collection_to_loading_state::<_, MyMeshAssets>(GameState::AssetLoading)
             .add_systems(OnEnter(GameState::InGame), spawn_player)
             .add_systems(Update, player_movement_system);
     }
@@ -83,7 +83,7 @@ fn spawn_player(
         SceneBundle {
             scene: assets.load("rovie.glb#Scene0"),
             transform: Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
-                                    .with_translation(Vec3::new(0., 0.5, 0.)),
+                                    .with_translation(Vec3::new(0., 0.25, 0.)),
             ..default()
         },
         Player,
