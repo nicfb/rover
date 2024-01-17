@@ -1,11 +1,13 @@
+use std::f32::consts::TAU;
+
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use bevy_asset_loader::prelude::*;
 
-use std::{f32::consts::TAU, ops::Mul};
+pub const PLAYER_VELO_Z: f32 = 1.;
+pub const PLAYER_ROT_VELO_Y: f32 = 0.25;
 
 pub struct PlayerPlugin;
-
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
@@ -16,7 +18,7 @@ impl Plugin for PlayerPlugin {
                 .load_collection::<MyMeshAssets>()
             )
             .add_systems(OnEnter(GameState::InGame), spawn_player)
-            .add_systems(Update, player_movement_system);
+            .add_systems(Update, (player_movement_system, read_result_system));
     }
 }
 
@@ -39,60 +41,58 @@ pub struct Player;
 fn player_movement_system(
     keys: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut player_query: Query<(&mut Transform, &mut Velocity), With<Player>>
+    mut player_query: Query<(&mut Transform, &mut KinematicCharacterController), With<Player>>
 ) {
-    let player_move_speed = 1.;
-    let player_rotation_speed = 0.25;
-    for (mut player_tform, mut player_velocity) in player_query.iter_mut() {
-        player_velocity.linvel = if keys.pressed(KeyCode::Up) {
-            Vec3::new(0., 0., -player_move_speed)
+    for (mut player_tform, mut character_controller) in player_query.iter_mut() {
+        let mut next_pos = Vec3::ZERO;
+        if keys.pressed(KeyCode::Up) {
+            next_pos.x += -PLAYER_VELO_Z * time.delta_seconds()
         } else if keys.pressed(KeyCode::Down) {
-            Vec3::new(0., 0., player_move_speed)
-        } else {
-            Vec3::new(0., -9.81, 0.)
+            next_pos.x += PLAYER_VELO_Z * time.delta_seconds()
         };
 
-        player_velocity.angvel = if keys.pressed(KeyCode::Left) {
-            Vec3::new(0., player_rotation_speed, 0.)
+        let rot_velocity = if keys.pressed(KeyCode::Left) {
+            PLAYER_ROT_VELO_Y
         } else if keys.pressed(KeyCode::Right) {
-            Vec3::new(0., -player_rotation_speed, 0.)
+            -PLAYER_ROT_VELO_Y
         } else {
-            Vec3::ZERO
+            0.
         };
 
-        //this is a kludge because the mesh doesn't face the correct direction
         let true_forward = player_tform.forward();
         let forward_direction = Vec3::new(true_forward.z, 0., -true_forward.x);
-        player_tform.translation += forward_direction * player_velocity.linvel * time.delta_seconds();
-        player_tform.rotate_y(player_velocity.angvel.mul(TAU * time.delta_seconds()).y);
+        let mut tform = forward_direction * next_pos.x;
+        player_tform.rotate_y(rot_velocity * TAU * time.delta_seconds());
+
+        tform.y = -1.; //?
+        character_controller.translation = Some(tform);
     }   
+}
+
+fn read_result_system(controllers: Query<(Entity, &KinematicCharacterControllerOutput)>) {
+    for (entity, output) in controllers.iter() {
+        println!("Entity {:?} moved by {:?} and touches the ground: {:?}",
+                  entity, output.effective_translation, output.grounded);
+    }
 }
 
 fn spawn_player(
     mut commands: Commands,
-    meshes: Res<Assets<Mesh>>,
     my_mesh_assets: Res<MyMeshAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    //create collider from mesh
-    let rover_mesh = meshes.get(&my_mesh_assets.rover).unwrap();
-    let collider = Collider::from_bevy_mesh(rover_mesh, &ComputedColliderShape::TriMesh);
-
     let player = (
         PbrBundle {
             mesh: my_mesh_assets.rover.clone(),
-            material: materials.add(Color::WHITE.into()),
+            material: materials.add(Color::BEIGE.into()),
             transform: Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
-                                    .with_translation(Vec3::new(0., 1.5, 0.)),
+                                    .with_translation(Vec3::new(0., 1., 0.)),
             ..default()
         },
         Player,
-        Velocity { 
-            linvel: Vec3::ZERO,
-            angvel: Vec3::ZERO,
-         },
-         RigidBody::Dynamic,
-        collider.unwrap(),
+        RigidBody::KinematicPositionBased,
+        Collider::cuboid(2., 0.7, 1.5),
+        KinematicCharacterController::default()
     );
 
     let camera = Camera3dBundle {
@@ -101,8 +101,7 @@ fn spawn_player(
         ..default()
     };
 
-    let player_entity = commands.spawn(player).id();
-    let camera_entity = commands.spawn(camera).id();
-
-    commands.entity(player_entity).push_children(&[camera_entity]);
+    commands.spawn(player).with_children(|children| {
+        children.spawn(camera);
+    });
 }
