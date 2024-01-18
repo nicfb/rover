@@ -44,6 +44,7 @@ fn setup_physics(
     commands
         .spawn(floor)
         .insert(ground_mesh_collider)
+        .insert(RigidBody::Fixed)
         .insert(TransformBundle::from(Transform::from_xyz(0.0, -2.0, 0.0)
                                                         .with_scale(Vec3::new(5., 1., 5.))));
 }
@@ -89,11 +90,11 @@ fn create_noise_map_mesh() -> Mesh {
 
             let pos = [
                 (x as f32 - width_f32 / 2.) * extent_f32 / width_f32,
-                noise_val,
+                1.5,
                 (y as f32 - height_f32 / 2.) * extent_f32 / height_f32,
             ];
             positions.push(pos);
-            normals.push([0.0, 1.0, 0.0]);
+            normals.push([0.0, 0.0, 0.0]);
             uvs.push([x as f32, y as f32]);
         }
     }
@@ -135,7 +136,5 @@ fn create_noise_map_mesh() -> Mesh {
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
 
-    mesh
-
-
+    return mesh
 }
