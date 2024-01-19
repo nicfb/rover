@@ -90,7 +90,7 @@ fn create_noise_map_mesh() -> Mesh {
 
             let pos = [
                 (x as f32 - width_f32 / 2.) * extent_f32 / width_f32,
-                1.5,
+                noise_val,
                 (y as f32 - height_f32 / 2.) * extent_f32 / height_f32,
             ];
             positions.push(pos);
