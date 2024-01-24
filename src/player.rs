@@ -6,12 +6,6 @@ pub const ROVER_SIZE: Vec3 = Vec3::new(0.5, 0.2, 1.05);
 
 pub struct PlayerPlugin;
 
-#[derive(Default, Resource)]
-pub struct Game {
-    fr_wheel_joint: Option<Entity>,
-    fl_wheel_joint: Option<Entity>,
-}
-
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app
@@ -20,7 +14,6 @@ impl Plugin for PlayerPlugin {
                 LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::InGame)
                 .load_collection::<MyMeshAssets>()
             )
-            .init_resource::<Game>()
             .add_systems(OnEnter(GameState::InGame), spawn_player)
             .add_systems(Update, player_movement_system);
     }
@@ -185,6 +178,79 @@ fn spawn_player(
         children.spawn(camera);
     }).id();
 
+    let fl_axle = (
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube::new(0.1))),
+            material: materials.add(Color::GRAY.into()),
+            transform: Transform::from_translation(front_left_tform),
+            ..default()
+        },
+        RigidBody::Dynamic,
+    );
+
+    let fr_axle = (
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube::new(0.1))),
+            material: materials.add(Color::GRAY.into()),
+            transform: Transform::from_translation(front_right_tform),
+            ..default()
+        },
+        RigidBody::Dynamic,
+    );
+
+    let rl_axle = (
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube::new(0.1))),
+            material: materials.add(Color::GRAY.into()),
+            transform: Transform::from_translation(rear_left_tform),
+            ..default()
+        },
+        RigidBody::Dynamic,
+    );
+
+    let rr_axle = (
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube::new(0.1))),
+            material: materials.add(Color::GRAY.into()),
+            transform: Transform::from_translation(rear_right_tform),
+            ..default()
+        },
+        RigidBody::Dynamic,
+    );
+
+    let fl_axle_entity = commands.spawn(fl_axle).id();
+    let fr_axle_entity = commands.spawn(fr_axle).id();
+    let rl_axle_entity = commands.spawn(rl_axle).id();
+    let rr_axle_entity = commands.spawn(rr_axle).id();
+
+    let stiffness = 5.;
+    let damping = 0.2;
+    let fl_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
+        .local_anchor1(front_left_tform)
+        .local_anchor2(Vec3::new(front_left_tform.x, -0.1, front_left_tform.z))
+        .motor_position(0., stiffness, damping)
+        .limits([-0.2, 0.2]);
+    let fr_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
+        .local_anchor1(front_right_tform)
+        .local_anchor2(Vec3::new(front_right_tform.x, -0.1, front_right_tform.z))
+        .motor_position(0., stiffness, damping)
+        .limits([-0.2, 0.2]);
+    let rl_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
+        .local_anchor1(rear_left_tform)
+        .local_anchor2(Vec3::new(rear_left_tform.x, -0.1, rear_left_tform.z))
+        .motor_position(0., stiffness, damping)
+        .limits([-0.2, 0.2]);
+    let rr_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
+        .local_anchor1(rear_right_tform)
+        .local_anchor2(Vec3::new(rear_right_tform.x, -0.1, rear_right_tform.z))
+        .motor_position(0., stiffness, damping)
+        .limits([-0.2, 0.2]);
+
+    commands.entity(fl_axle_entity).insert(MultibodyJoint::new(body_entity, fl_suspension_joint));
+    commands.entity(fr_axle_entity).insert(MultibodyJoint::new(body_entity, fr_suspension_joint));
+    commands.entity(rl_axle_entity).insert(MultibodyJoint::new(body_entity, rl_suspension_joint));
+    commands.entity(rr_axle_entity).insert(MultibodyJoint::new(body_entity, rr_suspension_joint));
+
     let lf_wheel_entity = commands.spawn(left_front_wheel).id();
     let rf_wheel_entity = commands.spawn(right_front_wheel).id();
     let lr_wheel_entity = commands.spawn(left_rear_wheel).id();
@@ -221,8 +287,8 @@ fn spawn_player(
         .local_anchor2(Vec3::ZERO)
         .build();
 
-    commands.entity(lf_wheel_entity).insert(MultibodyJoint::new(body_entity, lf_wheel_joint));
-    commands.entity(rf_wheel_entity).insert(MultibodyJoint::new(body_entity, rf_wheel_joint));
-    commands.entity(lr_wheel_entity).insert(MultibodyJoint::new(body_entity, rl_wheel_joint));
-    commands.entity(rr_wheel_entity).insert(MultibodyJoint::new(body_entity, rr_wheel_joint));
+    commands.entity(lf_wheel_entity).insert(MultibodyJoint::new(fl_axle_entity, lf_wheel_joint));
+    commands.entity(rf_wheel_entity).insert(MultibodyJoint::new(fr_axle_entity, rf_wheel_joint));
+    commands.entity(lr_wheel_entity).insert(MultibodyJoint::new(rl_axle_entity, rl_wheel_joint));
+    commands.entity(rr_wheel_entity).insert(MultibodyJoint::new(rr_axle_entity, rr_wheel_joint));
 }
