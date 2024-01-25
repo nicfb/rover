@@ -92,7 +92,7 @@ fn spawn_player(
         PbrBundle {
             mesh: meshes.add(Mesh::from(cylinder)),
             material: materials.add(Color::BLACK.into()),
-            transform: Transform::from_translation(front_left_tform).with_rotation(Quat::from_rotation_z(rot_angle)),
+            transform: Transform::from_translation(Vec3::new(0., 0., 0.)).with_rotation(Quat::from_rotation_z(rot_angle)),
             ..default()
         },
         Wheel,
@@ -108,7 +108,7 @@ fn spawn_player(
         PbrBundle {
             mesh: meshes.add(Mesh::from(cylinder)),
             material: materials.add(Color::RED.into()),
-            transform: Transform::from_translation(front_right_tform).with_rotation(Quat::from_rotation_z(rot_angle)),
+            transform: Transform::from_translation(Vec3::new(0., 0., 0.)).with_rotation(Quat::from_rotation_z(rot_angle)),
             ..default()
         },
         Wheel,
@@ -124,7 +124,7 @@ fn spawn_player(
         PbrBundle {
             mesh: meshes.add(Mesh::from(cylinder)),
             material: materials.add(Color::BLUE.into()),
-            transform: Transform::from_translation(rear_left_tform).with_rotation(Quat::from_rotation_z(rot_angle)),
+            transform: Transform::from_translation(Vec3::new(0., 0., 0.)).with_rotation(Quat::from_rotation_z(rot_angle)),
             ..default()
         },
         RigidBody::Dynamic,
@@ -139,7 +139,7 @@ fn spawn_player(
         PbrBundle {
             mesh: meshes.add(Mesh::from(cylinder)),
             material: materials.add(Color::GREEN.into()),
-            transform: Transform::from_translation(rear_right_tform).with_rotation(Quat::from_rotation_z(rot_angle)),
+            transform: Transform::from_translation(Vec3::new(0., 0., 0.)).with_rotation(Quat::from_rotation_z(rot_angle)),
             ..default()
         },
         RigidBody::Dynamic,
@@ -180,7 +180,7 @@ fn spawn_player(
 
     let fl_axle = (
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube::new(0.1))),
+            mesh: meshes.add(Mesh::from(shape::Cube::new(0.05))),
             material: materials.add(Color::GRAY.into()),
             transform: Transform::from_translation(front_left_tform),
             ..default()
@@ -190,7 +190,7 @@ fn spawn_player(
 
     let fr_axle = (
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube::new(0.1))),
+            mesh: meshes.add(Mesh::from(shape::Cube::new(0.05))),
             material: materials.add(Color::GRAY.into()),
             transform: Transform::from_translation(front_right_tform),
             ..default()
@@ -200,7 +200,7 @@ fn spawn_player(
 
     let rl_axle = (
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube::new(0.1))),
+            mesh: meshes.add(Mesh::from(shape::Cube::new(0.05))),
             material: materials.add(Color::GRAY.into()),
             transform: Transform::from_translation(rear_left_tform),
             ..default()
@@ -210,7 +210,7 @@ fn spawn_player(
 
     let rr_axle = (
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube::new(0.1))),
+            mesh: meshes.add(Mesh::from(shape::Cube::new(0.05))),
             material: materials.add(Color::GRAY.into()),
             transform: Transform::from_translation(rear_right_tform),
             ..default()
@@ -225,26 +225,23 @@ fn spawn_player(
 
     let stiffness = 5.;
     let damping = 0.2;
+    let suspension_limits = [-0.1, 0.1];
     let fl_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
         .local_anchor1(front_left_tform)
-        .local_anchor2(Vec3::new(front_left_tform.x, -0.1, front_left_tform.z))
         .motor_position(0., stiffness, damping)
-        .limits([-0.2, 0.2]);
+        .limits(suspension_limits);
     let fr_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
         .local_anchor1(front_right_tform)
-        .local_anchor2(Vec3::new(front_right_tform.x, -0.1, front_right_tform.z))
         .motor_position(0., stiffness, damping)
-        .limits([-0.2, 0.2]);
+        .limits(suspension_limits);
     let rl_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
         .local_anchor1(rear_left_tform)
-        .local_anchor2(Vec3::new(rear_left_tform.x, -0.1, rear_left_tform.z))
         .motor_position(0., stiffness, damping)
-        .limits([-0.2, 0.2]);
+        .limits(suspension_limits);
     let rr_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
         .local_anchor1(rear_right_tform)
-        .local_anchor2(Vec3::new(rear_right_tform.x, -0.1, rear_right_tform.z))
         .motor_position(0., stiffness, damping)
-        .limits([-0.2, 0.2]);
+        .limits(suspension_limits);
 
     commands.entity(fl_axle_entity).insert(MultibodyJoint::new(body_entity, fl_suspension_joint));
     commands.entity(fr_axle_entity).insert(MultibodyJoint::new(body_entity, fr_suspension_joint));
@@ -262,29 +259,27 @@ fn spawn_player(
         | JointAxesMask::ANG_Y
         | JointAxesMask::ANG_Z;
 
+    let l_suspension_offset = Vec3::new(-0.1, 0., 0.);
+    let r_suspension_offset = Vec3::new(0.1, 0., 0.);
     let lf_wheel_joint = GenericJointBuilder::new(locked_axes)
         .local_axis1(Vec3::X)
         .local_axis2(Vec3::Y)
-        .local_anchor1(front_left_tform)
-        .local_anchor2(Vec3::ZERO)
+        .local_anchor1(l_suspension_offset)
         .build();
     let rf_wheel_joint = GenericJointBuilder::new(locked_axes)
         .local_axis1(Vec3::X)
         .local_axis2(Vec3::Y)
-        .local_anchor1(front_right_tform)
-        .local_anchor2(Vec3::ZERO)
+        .local_anchor1(r_suspension_offset)
         .build();
     let rl_wheel_joint = GenericJointBuilder::new(locked_axes)
         .local_axis1(Vec3::X)
         .local_axis2(Vec3::Y)
-        .local_anchor1(rear_left_tform)
-        .local_anchor2(Vec3::ZERO)
+        .local_anchor1(l_suspension_offset)
         .build();
     let rr_wheel_joint = GenericJointBuilder::new(locked_axes)
         .local_axis1(Vec3::X)
         .local_axis2(Vec3::Y)
-        .local_anchor1(rear_right_tform)
-        .local_anchor2(Vec3::ZERO)
+        .local_anchor1(r_suspension_offset)
         .build();
 
     commands.entity(lf_wheel_entity).insert(MultibodyJoint::new(fl_axle_entity, lf_wheel_joint));
