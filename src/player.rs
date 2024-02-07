@@ -28,7 +28,7 @@ pub enum GameState {
 
 
 #[derive(Component)]
-pub struct Wheel;
+pub struct FrontWheel;
 
 #[derive(AssetCollection, Resource)]
 pub struct MyMeshAssets {
@@ -41,28 +41,49 @@ pub struct Player;
 
 pub fn player_movement_system(
     keyboard_input: Res<Input<KeyCode>>,
-    mut wheels: Query<(&mut ExternalForce, &Transform, With<Wheel>)>,
+    mut wheels: Query<(&mut ExternalForce, &mut MultibodyJoint, &Transform, With<FrontWheel>)>,
 ) {
-    // TORQUE
-    let torque: f32 = 5.;
-    if keyboard_input.pressed(KeyCode::Up) {
-        for (mut forces, transform, _) in wheels.iter_mut() {
+    let torque: f32 = 4.;
+    if keyboard_input.pressed(KeyCode::W) {
+        for (mut forces, _joint, transform, _) in wheels.iter_mut() {
             forces.torque = transform.rotation * Vec3::new(0., -torque, 0.);
         }
     }
-    if keyboard_input.pressed(KeyCode::Down) {
-        for (mut forces, transform, _) in wheels.iter_mut() {
+
+    if keyboard_input.pressed(KeyCode::S) {
+        for (mut forces, _joint, transform, _) in wheels.iter_mut() {
             forces.torque = transform.rotation * Vec3::new(0., torque, 0.);
         }
     }
-    if keyboard_input.just_released(KeyCode::Up) {
-        for (mut forces, transform, _) in wheels.iter_mut() {
+
+    if keyboard_input.just_released(KeyCode::W) {
+        for (mut forces, _joint, _transform, _) in wheels.iter_mut() {
             forces.torque = Vec3::ZERO;
         }
     }
-    if keyboard_input.just_released(KeyCode::Down) {
-        for (mut forces, transform, _) in wheels.iter_mut() {
+
+    if keyboard_input.just_released(KeyCode::S) {
+        for (mut forces, _joint,_transform, _) in wheels.iter_mut() {
             forces.torque = Vec3::ZERO;
+        }
+    }
+
+    let steering_angle = 0.4;
+    if keyboard_input.pressed(KeyCode::D) {
+        for (_forces, mut joint, _transform, _) in wheels.iter_mut() {
+            joint.data.set_local_axis1(Vec3::new(1., 0., steering_angle));
+        }
+    }
+
+    if keyboard_input.pressed(KeyCode::A) {
+        for (_forces, mut joint, _transform, _) in wheels.iter_mut() {
+            joint.data.set_local_axis1(Vec3::new(1., 0., -steering_angle));
+        }
+    }
+
+    if keyboard_input.just_released(KeyCode::D) || keyboard_input.just_released(KeyCode::A) {
+        for (_forces, mut joint, _transform, _) in wheels.iter_mut() {
+            joint.data.set_local_axis1(Vec3::X);
         }
     }
 }
@@ -92,10 +113,10 @@ fn spawn_player(
         PbrBundle {
             mesh: meshes.add(Mesh::from(cylinder)),
             material: materials.add(Color::BLACK.into()),
-            transform: Transform::from_translation(Vec3::new(0., 0., 0.)).with_rotation(Quat::from_rotation_z(rot_angle)),
+            transform: Transform::from_rotation(Quat::from_rotation_z(rot_angle)),
             ..default()
         },
-        Wheel,
+        FrontWheel,
         RigidBody::Dynamic,
         Collider::cylinder(cylinder.height / 2., cylinder.radius),
         ExternalForce::default(),
@@ -108,10 +129,10 @@ fn spawn_player(
         PbrBundle {
             mesh: meshes.add(Mesh::from(cylinder)),
             material: materials.add(Color::RED.into()),
-            transform: Transform::from_translation(Vec3::new(0., 0., 0.)).with_rotation(Quat::from_rotation_z(rot_angle)),
+            transform: Transform::from_rotation(Quat::from_rotation_z(rot_angle)),
             ..default()
         },
-        Wheel,
+        FrontWheel,
         RigidBody::Dynamic,
         Collider::cylinder(cylinder.height / 2., cylinder.radius),
         ExternalForce::default(),
@@ -124,7 +145,7 @@ fn spawn_player(
         PbrBundle {
             mesh: meshes.add(Mesh::from(cylinder)),
             material: materials.add(Color::BLUE.into()),
-            transform: Transform::from_translation(Vec3::new(0., 0., 0.)).with_rotation(Quat::from_rotation_z(rot_angle)),
+            transform: Transform::from_rotation(Quat::from_rotation_z(rot_angle)),
             ..default()
         },
         RigidBody::Dynamic,
@@ -139,7 +160,7 @@ fn spawn_player(
         PbrBundle {
             mesh: meshes.add(Mesh::from(cylinder)),
             material: materials.add(Color::GREEN.into()),
-            transform: Transform::from_translation(Vec3::new(0., 0., 0.)).with_rotation(Quat::from_rotation_z(rot_angle)),
+            transform: Transform::from_rotation(Quat::from_rotation_z(rot_angle)),
             ..default()
         },
         RigidBody::Dynamic,
@@ -230,14 +251,17 @@ fn spawn_player(
         .local_anchor1(front_left_tform)
         .motor_position(0., stiffness, damping)
         .limits(suspension_limits);
+
     let fr_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
         .local_anchor1(front_right_tform)
         .motor_position(0., stiffness, damping)
         .limits(suspension_limits);
+
     let rl_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
         .local_anchor1(rear_left_tform)
         .motor_position(0., stiffness, damping)
         .limits(suspension_limits);
+
     let rr_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
         .local_anchor1(rear_right_tform)
         .motor_position(0., stiffness, damping)
@@ -266,16 +290,19 @@ fn spawn_player(
         .local_axis2(Vec3::Y)
         .local_anchor1(l_suspension_offset)
         .build();
+
     let rf_wheel_joint = GenericJointBuilder::new(locked_axes)
         .local_axis1(Vec3::X)
         .local_axis2(Vec3::Y)
         .local_anchor1(r_suspension_offset)
         .build();
+
     let rl_wheel_joint = GenericJointBuilder::new(locked_axes)
         .local_axis1(Vec3::X)
         .local_axis2(Vec3::Y)
         .local_anchor1(l_suspension_offset)
         .build();
+
     let rr_wheel_joint = GenericJointBuilder::new(locked_axes)
         .local_axis1(Vec3::X)
         .local_axis2(Vec3::Y)
