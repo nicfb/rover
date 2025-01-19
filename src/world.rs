@@ -10,8 +10,7 @@ impl Plugin for WorldPlugin {
         app
             .add_systems(Startup, (setup_physics, spawn_light_source))
             .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
-            .add_plugins(RapierDebugRenderPlugin::default())
-            .insert_resource(ClearColor(Color::rgb(0., 0., 0.)));
+            .add_plugins(RapierDebugRenderPlugin::default());
     }
 }
 
@@ -93,6 +92,7 @@ fn create_noise_map_mesh() -> Mesh {
                 noise_val,
                 (y as f32 - height_f32 / 2.) * extent_f32 / height_f32,
             ];
+            
             positions.push(pos);
             normals.push([0.0, 0.0, 0.0]);
             uvs.push([x as f32, y as f32]);

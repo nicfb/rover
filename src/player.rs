@@ -1,8 +1,6 @@
-use bevy::prelude::*;
+use bevy::{core::Zeroable, prelude::*};
 use bevy_rapier3d::prelude::*;
 use bevy_asset_loader::prelude::*;
-
-pub const ROVER_SIZE: Vec3 = Vec3::new(0.5, 0.2, 1.05);
 
 pub struct PlayerPlugin;
 
@@ -26,7 +24,6 @@ pub enum GameState {
     InGame,
 }
 
-
 #[derive(Component)]
 pub struct FrontWheel;
 
@@ -41,9 +38,9 @@ pub struct Player;
 
 pub fn player_movement_system(
     keyboard_input: Res<Input<KeyCode>>,
-    mut wheels: Query<(&mut ExternalForce, &mut MultibodyJoint, &Transform, With<FrontWheel>)>,
+    mut wheels: Query<(&mut ExternalForce, &mut ImpulseJoint, &Transform, With<FrontWheel>)>,
 ) {
-    let torque: f32 = 4.;
+    let torque: f32 = 60.; //todo: tweak this
     if keyboard_input.pressed(KeyCode::W) {
         for (mut forces, _joint, transform, _) in wheels.iter_mut() {
             forces.torque = transform.rotation * Vec3::new(0., -torque, 0.);
@@ -88,106 +85,30 @@ pub fn player_movement_system(
     }
 }
 
+//shout out to https://github.com/bevy-vehicles-wg/bevy-vehicle-template
+//for helping me figure out the suspension joints
 fn spawn_player(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     my_mesh_assets: Res<MyMeshAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    //spawn wheels
-    let cylinder = shape::Cylinder {
-        height: 0.1,
-        radius: 0.1,
-        ..default()
-    };
+    //rover properties
+    let rover_length = 1.0;
+    let rover_width = 0.5;
+    let rover_height= 0.25;
+    let wheel_radius = 0.2;
+    let wheel_width = 0.1;
+    let suspension_height = 0.15;
+    let starting_height = 1.0;
 
-    let rot_angle = 90.0_f32.to_radians();
-
-    let front_left_tform = Vec3::new(-ROVER_SIZE.x / 2., -0.1, -ROVER_SIZE.z / 2.);
-    let front_right_tform = Vec3::new(ROVER_SIZE.x / 2., -0.1, -ROVER_SIZE.z / 2.);
-    let rear_left_tform = Vec3::new(-ROVER_SIZE.x / 2., -0.1, ROVER_SIZE.z / 2.);
-    let rear_right_tform = Vec3::new(ROVER_SIZE.x / 2., -0.1, ROVER_SIZE.z / 2.);
-    
-    //todo: DRY!!!
-    let left_front_wheel = (
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(cylinder)),
-            material: materials.add(Color::BLACK.into()),
-            transform: Transform::from_rotation(Quat::from_rotation_z(rot_angle)),
-            ..default()
-        },
-        FrontWheel,
-        RigidBody::Dynamic,
-        Collider::cylinder(cylinder.height / 2., cylinder.radius),
-        ExternalForce::default(),
-        Friction::coefficient(50.),
-        Restitution::coefficient(0.7),
-        AdditionalMassProperties::Mass(10.),
-    );
-
-    let right_front_wheel = (
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(cylinder)),
-            material: materials.add(Color::RED.into()),
-            transform: Transform::from_rotation(Quat::from_rotation_z(rot_angle)),
-            ..default()
-        },
-        FrontWheel,
-        RigidBody::Dynamic,
-        Collider::cylinder(cylinder.height / 2., cylinder.radius),
-        ExternalForce::default(),
-        Friction::coefficient(50.),
-        Restitution::coefficient(0.7),
-        AdditionalMassProperties::Mass(10.),
-    );
-
-    let left_rear_wheel = (
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(cylinder)),
-            material: materials.add(Color::BLUE.into()),
-            transform: Transform::from_rotation(Quat::from_rotation_z(rot_angle)),
-            ..default()
-        },
-        RigidBody::Dynamic,
-        Collider::cylinder(cylinder.height / 2., cylinder.radius),
-        ExternalForce::default(),
-        Friction::coefficient(50.),
-        Restitution::coefficient(0.7),
-        AdditionalMassProperties::Mass(10.),
-    );
-
-    let right_rear_wheel = (
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(cylinder)),
-            material: materials.add(Color::GREEN.into()),
-            transform: Transform::from_rotation(Quat::from_rotation_z(rot_angle)),
-            ..default()
-        },
-        RigidBody::Dynamic,
-        Collider::cylinder(cylinder.height / 2., cylinder.radius),
-        ExternalForce::default(),
-        Friction::coefficient(50.),
-        Restitution::coefficient(0.7),
-        AdditionalMassProperties::Mass(10.),
-    );
-
-    //spawn body
-    // let rover_collider_mesh = meshes.get(&my_mesh_assets.rover).unwrap();
-    // let collider = Collider::from_bevy_mesh(rover_collider_mesh, &ComputedColliderShape::TriMesh).unwrap();
-    let body = (
-        PbrBundle {
-            // mesh: my_mesh_assets.rover.clone(),
-            mesh: meshes.add(Mesh::from(shape::Cube::new(0.25))),
-            material: materials.add(Color::BEIGE.into()),
-            transform: Transform::from_scale(Vec3::new(0.5, 0.5, 0.5))
-                                    .with_translation(Vec3::new(0., 1.5, 0.)),
-            ..default()
-        },
-        Player,
-        RigidBody::Dynamic,
-        // collider,
-        Collider::cuboid(0.2, 0.1, 0.2),
-        ColliderMassProperties::Density(10.),
+    let rover_body_collider = (
+        Collider::cuboid(
+            rover_width / 2.0,
+            rover_height / 2.0,
+            rover_length / 2.0,
+        ),
+        ColliderMassProperties::Mass(50.0),
     );
 
     let camera = Camera3dBundle {
@@ -195,122 +116,105 @@ fn spawn_player(
         ..default()
     };
 
-    let body_entity = commands.spawn(body).with_children(|children| {
-        children.spawn(camera);
-    }).id();
+    let rover_body = shape::Box {
+        min_x: -rover_width / 2.0,
+        max_x: rover_width  / 2.0,
+        min_y: -rover_height / 2.0,
+        max_y: rover_height / 2.0,
+        min_z: -rover_length / 2.0,
+        max_z: rover_length / 2.0,
+    };
+    
+    let rover_body_entity = commands.spawn((
+            PbrBundle {
+                mesh: meshes.add(Mesh::from(rover_body)),
+                material: materials.add(Color::GRAY.into()),
+                transform: Transform::from_xyz(0.0, starting_height, 0.0),
+                ..default()
+            },
+            RigidBody::Dynamic,
+            Player,
+            rover_body_collider,
+        )).with_children(|children| {
+            children.spawn(camera);
+        }).id();
 
-    let fl_axle = (
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube::new(0.05))),
-            material: materials.add(Color::GRAY.into()),
-            transform: Transform::from_translation(front_left_tform),
+    let front_left_tform = Vec3::new(-rover_width, -rover_height, rover_length);
+    let front_right_tform = Vec3::new(rover_width, -rover_height, rover_length);
+    let rear_left_tform = Vec3::new(-rover_width, -rover_height, -rover_length);
+    let rear_right_tform = Vec3::new(rover_width, -rover_height, -rover_length);
+    let wheel_tforms = vec![
+        front_left_tform,
+        front_right_tform,
+        rear_left_tform,
+        rear_right_tform,
+    ];
+
+    for (i, wheel_tform) in wheel_tforms.into_iter().enumerate() {
+        let suspension_anchor1 = Vec3::new(wheel_tform.x / 2.0, 0.0, wheel_tform.z);
+        let suspension_anchor2 = Vec3::new(0.0, -wheel_tform.y, 0.0);
+        let suspension_stiffness = 100.0;
+        let suspension_damping = 100.0;
+        let suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
+            .local_anchor1(suspension_anchor1)
+            .local_anchor2(suspension_anchor2)
+            .limits([-suspension_height / 2.0, suspension_height / 2.0])
+            .motor_position(0., suspension_stiffness, suspension_damping);
+
+        let suspension_collider = (
+            Collider::cuboid(0.15, 0.05, 0.025),
+            ColliderMassProperties::Mass(30.0),
+        );
+
+        //attach suspension joint to rover body
+        let suspension_entity = commands
+            .spawn((
+                TransformBundle::from(Transform::from_xyz(wheel_tform.x / 2.0, wheel_tform.y + starting_height, wheel_tform.z)),
+                RigidBody::Dynamic,
+                suspension_collider,
+                ImpulseJoint::new(rover_body_entity, suspension_joint),
+            ))
+            .id();
+
+        //todo: use RevoluteJointBuilder instead
+        //      for some reason RevoluteJointBuilder::new(Vec3::X) doesn't work
+        let wheel_joint = GenericJointBuilder::new(JointAxesMask::LOCKED_REVOLUTE_AXES)
+            .local_anchor1(Vec3::new(wheel_tform.x / 2.0, 0.0, 0.0))
+            .local_axis1(Vec3::X)
+            .local_axis2(Vec3::Y);
+
+        let wheel_cylinder = shape::Cylinder {
+            height: wheel_width, //bc it's rotated 90 deg
+            radius: wheel_radius,
             ..default()
-        },
-        RigidBody::Dynamic,
-    );
+        };
 
-    let fr_axle = (
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube::new(0.05))),
-            material: materials.add(Color::GRAY.into()),
-            transform: Transform::from_translation(front_right_tform),
-            ..default()
-        },
-        RigidBody::Dynamic,
-    );
+        let wheel_collider = (
+            Collider::cylinder(wheel_width / 2.0, wheel_radius),
+            Friction::coefficient(1.0),
+            Restitution::coefficient(0.7),
+            ColliderMassProperties::Mass(10.0),
+        );
 
-    let rl_axle = (
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube::new(0.05))),
-            material: materials.add(Color::GRAY.into()),
-            transform: Transform::from_translation(rear_left_tform),
-            ..default()
-        },
-        RigidBody::Dynamic,
-    );
+        let mut wheel_entity = commands.spawn((
+            RigidBody::Dynamic,
+            PbrBundle {
+                mesh: meshes.add(Mesh::from(wheel_cylinder)),
+                material: materials.add(Color::BLACK.into()),
+                transform: Transform {
+                    translation: Vec3::new(wheel_tform.x, wheel_tform.y + starting_height, wheel_tform.z),
+                    rotation: Quat::from_rotation_z(std::f32::consts::PI / 2.0),
+                    scale: Vec3::ONE,
+                },
+                ..default()
+            },
+            wheel_collider,
+            ExternalForce::default(),
+            ImpulseJoint::new(suspension_entity, wheel_joint),
+        ));
 
-    let rr_axle = (
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube::new(0.05))),
-            material: materials.add(Color::GRAY.into()),
-            transform: Transform::from_translation(rear_right_tform),
-            ..default()
-        },
-        RigidBody::Dynamic,
-    );
-
-    let fl_axle_entity = commands.spawn(fl_axle).id();
-    let fr_axle_entity = commands.spawn(fr_axle).id();
-    let rl_axle_entity = commands.spawn(rl_axle).id();
-    let rr_axle_entity = commands.spawn(rr_axle).id();
-
-    let stiffness = 5.;
-    let damping = 0.2;
-    let suspension_limits = [-0.1, 0.1];
-    let fl_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
-        .local_anchor1(front_left_tform)
-        .motor_position(0., stiffness, damping)
-        .limits(suspension_limits);
-
-    let fr_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
-        .local_anchor1(front_right_tform)
-        .motor_position(0., stiffness, damping)
-        .limits(suspension_limits);
-
-    let rl_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
-        .local_anchor1(rear_left_tform)
-        .motor_position(0., stiffness, damping)
-        .limits(suspension_limits);
-
-    let rr_suspension_joint = PrismaticJointBuilder::new(Vec3::Y)
-        .local_anchor1(rear_right_tform)
-        .motor_position(0., stiffness, damping)
-        .limits(suspension_limits);
-
-    commands.entity(fl_axle_entity).insert(MultibodyJoint::new(body_entity, fl_suspension_joint));
-    commands.entity(fr_axle_entity).insert(MultibodyJoint::new(body_entity, fr_suspension_joint));
-    commands.entity(rl_axle_entity).insert(MultibodyJoint::new(body_entity, rl_suspension_joint));
-    commands.entity(rr_axle_entity).insert(MultibodyJoint::new(body_entity, rr_suspension_joint));
-
-    let lf_wheel_entity = commands.spawn(left_front_wheel).id();
-    let rf_wheel_entity = commands.spawn(right_front_wheel).id();
-    let lr_wheel_entity = commands.spawn(left_rear_wheel).id();
-    let rr_wheel_entity = commands.spawn(right_rear_wheel).id();
-
-    let locked_axes = JointAxesMask::X
-        | JointAxesMask::Y
-        | JointAxesMask::Z
-        | JointAxesMask::ANG_Y
-        | JointAxesMask::ANG_Z;
-
-    let l_suspension_offset = Vec3::new(-0.1, 0., 0.);
-    let r_suspension_offset = Vec3::new(0.1, 0., 0.);
-    let lf_wheel_joint = GenericJointBuilder::new(locked_axes)
-        .local_axis1(Vec3::X)
-        .local_axis2(Vec3::Y)
-        .local_anchor1(l_suspension_offset)
-        .build();
-
-    let rf_wheel_joint = GenericJointBuilder::new(locked_axes)
-        .local_axis1(Vec3::X)
-        .local_axis2(Vec3::Y)
-        .local_anchor1(r_suspension_offset)
-        .build();
-
-    let rl_wheel_joint = GenericJointBuilder::new(locked_axes)
-        .local_axis1(Vec3::X)
-        .local_axis2(Vec3::Y)
-        .local_anchor1(l_suspension_offset)
-        .build();
-
-    let rr_wheel_joint = GenericJointBuilder::new(locked_axes)
-        .local_axis1(Vec3::X)
-        .local_axis2(Vec3::Y)
-        .local_anchor1(r_suspension_offset)
-        .build();
-
-    commands.entity(lf_wheel_entity).insert(MultibodyJoint::new(fl_axle_entity, lf_wheel_joint));
-    commands.entity(rf_wheel_entity).insert(MultibodyJoint::new(fr_axle_entity, rf_wheel_joint));
-    commands.entity(lr_wheel_entity).insert(MultibodyJoint::new(rl_axle_entity, rl_wheel_joint));
-    commands.entity(rr_wheel_entity).insert(MultibodyJoint::new(rr_axle_entity, rr_wheel_joint));
+        if i > 1 {
+            wheel_entity.insert(FrontWheel);
+        }
+    }
 }
