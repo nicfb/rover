@@ -181,7 +181,10 @@ fn spawn_player(
         let wheel_joint = GenericJointBuilder::new(JointAxesMask::LOCKED_REVOLUTE_AXES)
             .local_anchor1(Vec3::new(wheel_tform.x / 2.0, 0.0, 0.0))
             .local_axis1(Vec3::X)
-            .local_axis2(Vec3::Y);
+            .local_axis2(Vec3::Y)
+            .set_motor(JointAxis::AngX, 0.0, 0.0, 0., 1.0);
+        // let wheel_joint = RevoluteJointBuilder::new(Vec3::X)
+            // .local_anchor1(Vec3::new(wheel_tform.x / 2.0, 0.0, 0.0));
 
         let wheel_cylinder = shape::Cylinder {
             height: wheel_width, //bc it's rotated 90 deg
@@ -203,7 +206,7 @@ fn spawn_player(
                 material: materials.add(Color::BLACK.into()),
                 transform: Transform {
                     translation: Vec3::new(wheel_tform.x, wheel_tform.y + starting_height, wheel_tform.z),
-                    rotation: Quat::from_rotation_z(std::f32::consts::PI / 2.0),
+                    rotation: Quat::from_rotation_z(-90_f32.to_radians()),
                     scale: Vec3::ONE,
                 },
                 ..default()
